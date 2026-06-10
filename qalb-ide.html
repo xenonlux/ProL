@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>القلب الناطق — بيئة البرمجة العربية</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Cairo:wght@300;400;600;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:       #0d0e14;
+    --surface:   #12141f;
+    --panel:     #181b28;
+    --border:    #252840;
+    --gold:      #d4a843;
+    --gold-dim:  #8a6c28;
+    --amber:     #e8843a;
+    --teal:      #3abfb8;
+    --rose:      #c96b7a;
+    --lavender:  #8b7fd4;
+    --text:      #dde0f0;
+    --muted:     #6b7099;
+    --keyword:   #e8843a;
+    --variable:  #3abfb8;
+    --string:    #88c96b;
+    --number:    #d4a843;
+    --comment:   #4a5175;
+    --builtin:   #c96b7a;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--ink);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 10;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text {
+    font-family: 'Amiri', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 300;
+    display: block;
+    line-height: 1;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 7px 18px;
+    border-radius: 6px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-run {
+    background: var(--gold);
+    color: var(--ink);
+  }
+  .btn-run:hover { background: var(--amber); transform: translateY(-1px); }
+  .btn-clear {
+    background: var(--panel);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-clear:hover { color: var(--text); border-color: var(--muted); }
+
+  .version-badge {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .workspace {
+    display: grid;
+    grid-template-columns: 220px 1fr 300px;
+    grid-template-rows: 1fr 220px;
+    height: calc(100vh - 56px);
+    gap: 0;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .snippet {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+    transition: all 0.1s;
+  }
+  .snippet:hover {
+    background: var(--panel);
+    border-color: var(--border);
+  }
+  .snippet-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .snippet-desc {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .keyword-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .kw-chip {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .kw-chip:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .kw-chip.kw-flow   { color: var(--keyword); }
+  .kw-chip.kw-var    { color: var(--variable); }
+  .kw-chip.kw-func   { color: var(--lavender); }
+  .kw-chip.kw-io     { color: var(--teal); }
+
+  /* ── EDITOR AREA ── */
+  .editor-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+  }
+
+  .tab-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 38px;
+  }
+  .tab {
+    padding: 0 16px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.1s;
+  }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--gold);
+  }
+  .tab-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+
+  .editor-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .line-numbers {
+    width: 44px;
+    padding: 16px 0;
+    background: var(--panel);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    text-align: center;
+    user-select: none;
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  #code-input {
+    flex: 1;
+    background: var(--panel);
+    color: transparent;
+    caret-color: var(--gold);
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 16px 20px;
+    border: none;
+    outline: none;
+    resize: none;
+    direction: rtl;
+    white-space: pre;
+    overflow: auto;
+    position: absolute;
+    top: 0; right: 44px; bottom: 0; left: 0;
+    z-index: 2;
+  }
+
+  #highlight-layer {
+    position: absolute;
+    top: 0; right: 44px; bottom: 0; left: 0;
+    padding: 16px 20px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    direction: rtl;
+    white-space: pre;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  /* ── OUTPUT PANEL ── */
+  .output-panel {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 36px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .panel-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .status-dot.running { background: var(--gold); animation: pulse 1s infinite; }
+  .status-dot.success { background: var(--string); }
+  .status-dot.error   { background: var(--rose); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #output {
+    flex: 1;
+    padding: 12px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-y: auto;
+    direction: rtl;
+  }
+
+  .out-line { margin-bottom: 2px; display: flex; gap: 8px; align-items: baseline; }
+  .out-prompt { color: var(--gold-dim); user-select: none; font-size: 11px; }
+  .out-value { color: var(--text); }
+  .out-error { color: var(--rose); }
+  .out-info  { color: var(--teal); font-style: italic; }
+  .out-num   { color: var(--number); }
+  .out-str   { color: var(--string); }
+  .out-bool  { color: var(--lavender); }
+  .out-sep   { color: var(--border); margin: 4px 0; }
+
+  /* ── AST PANEL ── */
+  .ast-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #ast-tree {
+    flex: 1;
+    padding: 12px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    overflow-y: auto;
+    direction: ltr;
+  }
+
+  .ast-node { cursor: default; }
+  .ast-type { color: var(--amber); font-weight: bold; }
+  .ast-key  { color: var(--lavender); }
+  .ast-val  { color: var(--string); }
+  .ast-num  { color: var(--number); }
+  .ast-indent { color: var(--border); }
+
+  /* ── SCROLLBARS ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ── WELCOME ── */
+  .welcome-line {
+    color: var(--muted);
+    font-style: italic;
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    padding: 4px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🫀</div>
+    <div>
+      <div class="logo-text">القلب الناطق</div>
+      <span class="logo-sub">لغة البرمجة العربية</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span class="version-badge">v0.3.0 — Alpha</span>
+    <button class="btn btn-clear" onclick="clearOutput()">مسح المخرجات</button>
+    <button class="btn btn-run" onclick="runCode()">▶ تشغيل الكود</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">أمثلة جاهزة</div>
+      <div class="snippet" onclick="loadSnippet('hello')">
+        <div class="snippet-name">مرحباً بالعالم</div>
+        <div class="snippet-desc">أول برنامج عربي</div>
+      </div>
+      <div class="snippet" onclick="loadSnippet('variables')">
+        <div class="snippet-name">المتغيرات والحساب</div>
+        <div class="snippet-desc">أنواع البيانات الأساسية</div>
+      </div>
+      <div class="snippet" onclick="loadSnippet('conditions')">
+        <div class="snippet-name">الشروط والتفريع</div>
+        <div class="snippet-desc">اذا / والا</div>
+      </div>
+      <div class="snippet" onclick="loadSnippet('loops')">
+        <div class="snippet-name">الحلقات التكرارية</div>
+        <div class="snippet-desc">طالما / لكل</div>
+      </div>
+      <div class="snippet" onclick="loadSnippet('functions')">
+        <div class="snippet-name">الدوال والإعادة</div>
+        <div class="snippet-desc">تعريف واستدعاء دالة</div>
+      </div>
+      <div class="snippet" onclick="loadSnippet('oop')">
+        <div class="snippet-name">البرمجة الكائنية</div>
+        <div class="snippet-desc">صنف، خصائص، دوال</div>
+      </div>
+      <div class="snippet" onclick="loadSnippet('fibonacci')">
+        <div class="snippet-name">متتالية فيبوناتشي</div>
+        <div class="snippet-desc">حلقة + رياضيات</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">الكلمات المفتاحية</div>
+      <div class="keyword-grid">
+        <span class="kw-chip kw-flow" onclick="insertKw('اذا ')">اذا</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('والا\n')">والا</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('طالما ')">طالما</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('لكل ')">لكل</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('في ')">في</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('نهاية\n')">نهاية</span>
+        <span class="kw-chip kw-func" onclick="insertKw('دالة ')">دالة</span>
+        <span class="kw-chip kw-func" onclick="insertKw('ارجع ')">ارجع</span>
+        <span class="kw-chip kw-func" onclick="insertKw('صنف ')">صنف</span>
+        <span class="kw-chip kw-func" onclick="insertKw('يرث ')">يرث</span>
+        <span class="kw-chip kw-io" onclick="insertKw('اعرض ')">اعرض</span>
+        <span class="kw-chip kw-io" onclick="insertKw('استورد ')">استورد</span>
+        <span class="kw-chip kw-var" onclick="insertKw('$')">$متغير</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('حاول\n')">حاول</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('امسك\n')">امسك</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('صحيح')">صحيح</span>
+        <span class="kw-chip kw-flow" onclick="insertKw('خطأ')">خطأ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="editor-area">
+    <div class="tab-bar">
+      <div class="tab active"><span class="tab-dot"></span>main.قلب</div>
+    </div>
+    <div class="editor-wrapper">
+      <div class="line-numbers" id="line-numbers">1</div>
+      <div id="highlight-layer"></div>
+      <textarea id="code-input" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+        placeholder="# اكتب كودك العربي هنا..."
+        onkeydown="handleKeydown(event)"
+        oninput="onCodeInput()"
+        onscroll="syncScroll()"
+      ></textarea>
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="output-panel">
+    <div class="panel-header">
+      <div class="panel-label">
+        <span class="status-dot" id="status-dot"></span>
+        المخرجات
+      </div>
+    </div>
+    <div id="output">
+      <div class="welcome-line">← اختر مثالاً أو اكتب كودك وانقر تشغيل</div>
+    </div>
+  </div>
+
+  <!-- AST PANEL -->
+  <div class="ast-panel">
+    <div class="panel-header">
+      <div class="panel-label">شجرة البناء (AST)</div>
+    </div>
+    <div id="ast-tree"><span style="color:var(--muted);font-family:Cairo,sans-serif;font-size:12px">ستظهر هنا بعد التشغيل</span></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//   القلب الناطق — مفسر JavaScript للغة البرمجة العربية
+// ═══════════════════════════════════════════════════════════════
+
+// ── SNIPPETS ──────────────────────────────────────────────────
+const SNIPPETS = {
+  hello: `# مرحباً بالعالم!
+اعرض "أهلاً يا عالم، هنا القلب الناطق!".
+$اسم = "المبرمج العربي".
+اعرض "مرحباً " + $اسم + "!".`,
+
+  variables: `# المتغيرات وأنواع البيانات
+$عدد_صحيح = 42.
+$عدد_عشري = 3.14.
+$نص = "لغة القلب".
+$صحيح = صحيح.
+$قائمة = [1, 2, 3, 4, 5].
+
+اعرض $عدد_صحيح.
+اعرض $عدد_عشري.
+اعرض $نص.
+اعرض $صحيح.
+اعرض $قائمة.
+
+# العمليات الحسابية
+$مجموع = $عدد_صحيح + 8.
+$ضرب = $عدد_صحيح * 2.
+$قسمة = $عدد_صحيح / 6.
+اعرض $مجموع.
+اعرض $ضرب.
+اعرض $قسمة.`,
+
+  conditions: `# الشروط والتفريع
+$درجة = 75.
+
+اذا $درجة >= 90:
+    اعرض "ممتاز!".
+والا اذا $درجة >= 80:
+    اعرض "جيد جداً!".
+والا اذا $درجة >= 70:
+    اعرض "جيد.".
+والا:
+    اعرض "تحتاج للمراجعة.".
+نهاية
+
+$عدد = 7.
+اذا $عدد % 2 == 0:
+    اعرض $عدد + " عدد زوجي".
+والا:
+    اعرض $عدد + " عدد فردي".
+نهاية`,
+
+  loops: `# الحلقات التكرارية
+# حلقة طالما
+$عداد = 1.
+طالما $عداد <= 5:
+    اعرض "العد: " + $عداد.
+    $عداد = $عداد + 1.
+نهاية
+
+# حلقة لكل
+$مدن = ["بغداد", "القاهرة", "الرياض", "بيروت", "دمشق"].
+لكل $مدينة في $مدن:
+    اعرض "مرحباً من " + $مدينة.
+نهاية
+
+# مجموع الأعداد 1 إلى 10
+$مجموع = 0.
+$ي = 1.
+طالما $ي <= 10:
+    $مجموع = $مجموع + $ي.
+    $ي = $ي + 1.
+نهاية
+اعرض "مجموع 1 إلى 10 = " + $مجموع.`,
+
+  functions: `# الدوال والإعادة
+دالة مرحبا(اسم):
+    اعرض "مرحباً، " + اسم + "!".
+نهاية
+
+دالة مربع(عدد):
+    ارجع عدد * عدد.
+نهاية
+
+دالة المضروب(ن):
+    اذا ن <= 1:
+        ارجع 1.
+    نهاية
+    ارجع ن * المضروب(ن - 1).
+نهاية
+
+# استدعاء الدوال
+مرحبا("البرمجة العربية").
+$نتيجة = مربع(9).
+اعرض "مربع 9 = " + $نتيجة.
+
+$ن = 6.
+اعرض "مضروب " + $ن + " = " + المضروب($ن).`,
+
+  oop: `# البرمجة الكائنية
+صنف حيوان:
+    $اسم = "غير معروف".
+    $صوت = "...".
+    دالة تعرف():
+        اعرض "أنا " + $اسم + " وأقول " + $صوت.
+    نهاية
+نهاية
+
+صنف كلب يرث حيوان:
+    $اسم = "كلب".
+    $صوت = "هاو هاو".
+    دالة العب():
+        اعرض $اسم + " يلعب بسعادة!".
+    نهاية
+نهاية
+
+صنف قطة يرث حيوان:
+    $اسم = "قطة".
+    $صوت = "مياو".
+نهاية
+
+$كلبي = جديد(كلب).
+$قطتي = جديد(قطة).
+$كلبي.تعرف().
+$قطتي.تعرف().
+$كلبي.العب().`,
+
+  fibonacci: `# متتالية فيبوناتشي
+دالة فيبوناتشي(ن):
+    اذا ن <= 0:
+        ارجع 0.
+    نهاية
+    اذا ن == 1:
+        ارجع 1.
+    نهاية
+    $أ = 0.
+    $ب = 1.
+    $عداد = 2.
+    طالما $عداد <= ن:
+        $مؤقت = $أ + $ب.
+        $أ = $ب.
+        $ب = $مؤقت.
+        $عداد = $عداد + 1.
+    نهاية
+    ارجع $ب.
+نهاية
+
+اعرض "متتالية فيبوناتشي (أول 10 أرقام):".
+$ي = 0.
+طالما $ي < 10:
+    اعرض "f(" + $ي + ") = " + فيبوناتشي($ي).
+    $ي = $ي + 1.
+نهاية`
+};
+
+function loadSnippet(name) {
+  document.getElementById('code-input').value = SNIPPETS[name] || '';
+  onCodeInput();
+}
+
+// ── SYNTAX HIGHLIGHTER ───────────────────────────────────────
+const KEYWORDS_FLOW = ['اذا','والا','طالما','لكل','في','نهاية','حاول','امسك'];
+const KEYWORDS_FUNC = ['دالة','ارجع','صنف','يرث','جديد'];
+const KEYWORDS_IO   = ['اعرض','استورد'];
+const KEYWORDS_LIT  = ['صحيح','خطأ','فارغ'];
+
+function highlight(code) {
+  const lines = code.split('\n');
+  return lines.map(line => highlightLine(line)).join('\n');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlightLine(line) {
+  // comment
+  if (/^\s*#/.test(line)) {
+    return `<span style="color:var(--comment)">${esc(line)}</span>`;
+  }
+  let result = '';
+  let i = 0;
+  while (i < line.length) {
+    // string
+    if (line[i] === '"') {
+      let j = i+1;
+      while (j < line.length && line[j] !== '"') j++;
+      result += `<span style="color:var(--string)">${esc(line.slice(i,j+1))}</span>`;
+      i = j+1; continue;
+    }
+    // variable
+    if (line[i] === '$') {
+      let j = i+1;
+      while (j < line.length && /[\u0600-\u06FFa-zA-Z0-9_]/.test(line[j])) j++;
+      result += `<span style="color:var(--variable)">${esc(line.slice(i,j))}</span>`;
+      i = j; continue;
+    }
+    // number
+    if (/[0-9]/.test(line[i])) {
+      let j = i;
+      while (j < line.length && /[0-9.]/.test(line[j])) j++;
+      result += `<span style="color:var(--number)">${esc(line.slice(i,j))}</span>`;
+      i = j; continue;
+    }
+    // arabic word
+    if (/[\u0600-\u06FF]/.test(line[i])) {
+      let j = i;
+      while (j < line.length && /[\u0600-\u06FF]/.test(line[j])) j++;
+      const word = line.slice(i,j);
+      if (KEYWORDS_FLOW.includes(word))
+        result += `<span style="color:var(--keyword);font-weight:600">${esc(word)}</span>`;
+      else if (KEYWORDS_FUNC.includes(word))
+        result += `<span style="color:var(--lavender);font-weight:600">${esc(word)}</span>`;
+      else if (KEYWORDS_IO.includes(word))
+        result += `<span style="color:var(--teal);font-weight:600">${esc(word)}</span>`;
+      else if (KEYWORDS_LIT.includes(word))
+        result += `<span style="color:var(--rose)">${esc(word)}</span>`;
+      else
+        result += `<span style="color:var(--text)">${esc(word)}</span>`;
+      i = j; continue;
+    }
+    result += esc(line[i]);
+    i++;
+  }
+  return result;
+}
+
+function onCodeInput() {
+  const code = document.getElementById('code-input').value;
+  document.getElementById('highlight-layer').innerHTML = highlight(code) + '\n';
+  updateLineNumbers(code);
+}
+
+function updateLineNumbers(code) {
+  const lines = code.split('\n').length;
+  document.getElementById('line-numbers').innerHTML =
+    Array.from({length: lines}, (_,i) => i+1).join('\n');
+}
+
+function syncScroll() {
+  const ta = document.getElementById('code-input');
+  document.getElementById('highlight-layer').scrollTop = ta.scrollTop;
+  document.getElementById('line-numbers').scrollTop = ta.scrollTop;
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta = e.target;
+    const s = ta.selectionStart;
+    ta.value = ta.value.slice(0,s) + '    ' + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = s + 4;
+    onCodeInput();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runCode();
+  }
+}
+
+function insertKw(kw) {
+  const ta = document.getElementById('code-input');
+  const s = ta.selectionStart;
+  ta.value = ta.value.slice(0,s) + kw + ta.value.slice(s);
+  ta.selectionStart = ta.selectionEnd = s + kw.length;
+  ta.focus();
+  onCodeInput();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//   المفسر — القلب الناطق Interpreter
+// ═══════════════════════════════════════════════════════════════
+
+// ── TOKENIZER ────────────────────────────────────────────────
+const TT = {
+  NUM:'NUM', STR:'STR', ID:'ID', OP:'OP', ASSIGN:'ASSIGN',
+  LPAREN:'LPAREN', RPAREN:'RPAREN', LBRACKET:'LBRACKET', RBRACKET:'RBRACKET',
+  COMMA:'COMMA', DOT:'DOT', COLON:'COLON', EOL:'EOL', EOF:'EOF',
+  HASH:'HASH', PLUS:'PLUS', MINUS:'MINUS', STAR:'STAR', SLASH:'SLASH',
+  EQ:'EQ', NEQ:'NEQ', LT:'LT', GT:'GT', LTE:'LTE', GTE:'GTE',
+  MOD:'MOD',
+};
+
+class Token {
+  constructor(type, value, line) { this.type=type; this.value=value; this.line=line; }
+}
+
+function tokenize(src) {
+  const tokens = [];
+  let i = 0, line = 1;
+  const isArabic = c => /[\u0600-\u06FF]/.test(c);
+  const isAlnum  = c => /[\u0600-\u06FFa-zA-Z0-9_]/.test(c);
+  const isDigit  = c => /[0-9]/.test(c);
+  const isWS     = c => c === ' ' || c === '\t' || c === '\r';
+
+  while (i < src.length) {
+    const c = src[i];
+    if (c === '\n') { tokens.push(new Token(TT.EOL, '\n', line)); line++; i++; continue; }
+    if (isWS(c)) { i++; continue; }
+    if (c === '#') { while (i < src.length && src[i] !== '\n') i++; continue; }
+    if (c === '"') {
+      let s = ''; i++;
+      while (i < src.length && src[i] !== '"') { s += src[i]; i++; }
+      i++;
+      tokens.push(new Token(TT.STR, s, line)); continue;
+    }
+    if (isDigit(c) || (c==='-' && isDigit(src[i+1]||''))) {
+      let s = c; i++;
+      while (i < src.length && /[0-9.]/.test(src[i])) { s += src[i]; i++; }
+      tokens.push(new Token(TT.NUM, parseFloat(s), line)); continue;
+    }
+    if (c === '$') {
+      let s = ''; i++;
+      while (i < src.length && isAlnum(src[i])) { s += src[i]; i++; }
+      tokens.push(new Token(TT.ID, '$'+s, line)); continue;
+    }
+    if (isArabic(c) || /[a-zA-Z]/.test(c)) {
+      let s = ''; 
+      while (i < src.length && isAlnum(src[i])) { s += src[i]; i++; }
+      tokens.push(new Token(TT.ID, s, line)); continue;
+    }
+    if (c==='=' && src[i+1]==='=') { tokens.push(new Token(TT.EQ,'==',line)); i+=2; continue; }
+    if (c==='!' && src[i+1]==='=') { tokens.push(new Token(TT.NEQ,'!=',line)); i+=2; continue; }
+    if (c==='<' && src[i+1]==='=') { tokens.push(new Token(TT.LTE,'<=',line)); i+=2; continue; }
+    if (c==='>' && src[i+1]==='=') { tokens.push(new Token(TT.GTE,'>=',line)); i+=2; continue; }
+    if (c==='<') { tokens.push(new Token(TT.LT,'<',line)); i++; continue; }
+    if (c==='>') { tokens.push(new Token(TT.GT,'>',line)); i++; continue; }
+    if (c==='=') { tokens.push(new Token(TT.ASSIGN,'=',line)); i++; continue; }
+    if (c==='+') { tokens.push(new Token(TT.PLUS,'+',line)); i++; continue; }
+    if (c==='-') { tokens.push(new Token(TT.MINUS,'-',line)); i++; continue; }
+    if (c==='*') { tokens.push(new Token(TT.STAR,'*',line)); i++; continue; }
+    if (c==='/') { tokens.push(new Token(TT.SLASH,'/',line)); i++; continue; }
+    if (c==='%') { tokens.push(new Token(TT.MOD,'%',line)); i++; continue; }
+    if (c==='(') { tokens.push(new Token(TT.LPAREN,'(',line)); i++; continue; }
+    if (c===')') { tokens.push(new Token(TT.RPAREN,')',line)); i++; continue; }
+    if (c==='[') { tokens.push(new Token(TT.LBRACKET,'[',line)); i++; continue; }
+    if (c===']') { tokens.push(new Token(TT.RBRACKET,']',line)); i++; continue; }
+    if (c===',') { tokens.push(new Token(TT.COMMA,',',line)); i++; continue; }
+    if (c==='.') { tokens.push(new Token(TT.DOT,'.',line)); i++; continue; }
+    if (c===':') { tokens.push(new Token(TT.COLON,':',line)); i++; continue; }
+    i++;
+  }
+  tokens.push(new Token(TT.EOF,'',line));
+  return tokens;
+}
+
+// ── PARSER ───────────────────────────────────────────────────
+class Parser {
+  constructor(tokens) {
+    this.tokens = tokens;
+    this.pos = 0;
+  }
+  peek(off=0) { return this.tokens[Math.min(this.pos+off, this.tokens.length-1)]; }
+  cur() { return this.peek(0); }
+  eat(type) {
+    const t = this.cur();
+    if (type && t.type !== type) throw new Error(`سطر ${t.line}: توقعت ${type} لكن وجدت "${t.value}"`);
+    this.pos++;
+    return t;
+  }
+  skip() { while (this.cur().type === TT.EOL) this.eat(TT.EOL); }
+
+  parse() {
+    const stmts = [];
+    while (this.cur().type !== TT.EOF) {
+      this.skip();
+      if (this.cur().type === TT.EOF) break;
+      stmts.push(this.parseStmt());
+      this.skip();
+    }
+    return { type: 'Program', body: stmts };
+  }
+
+  parseStmt() {
+    const t = this.cur();
+    if (t.type === TT.ID) {
+      const v = t.value;
+      if (v === 'اذا')    return this.parseIf();
+      if (v === 'طالما')  return this.parseWhile();
+      if (v === 'لكل')    return this.parseFor();
+      if (v === 'دالة')   return this.parseFuncDef();
+      if (v === 'صنف')    return this.parseClassDef();
+      if (v === 'اعرض')   return this.parsePrint();
+      if (v === 'ارجع')   return this.parseReturn();
+      if (v === 'حاول')   return this.parseTry();
+      if (v === 'استورد') { this.eat(TT.ID); const m=this.parseExpr(); this.eatDot(); return {type:'Import',module:m}; }
+      // variable assignment or function call
+      return this.parseExprStmt();
+    }
+    return this.parseExprStmt();
+  }
+
+  eatDot() { if (this.cur().type===TT.DOT) this.eat(TT.DOT); }
+  eatColon() { if (this.cur().type===TT.COLON) this.eat(TT.COLON); }
+
+  parseBlock(terminators=['نهاية']) {
+    const stmts = [];
+    this.skip();
+    while (!terminators.includes(this.cur().value) && this.cur().type !== TT.EOF) {
+      if (this.cur().type === TT.EOL) { this.eat(TT.EOL); continue; }
+      stmts.push(this.parseStmt());
+      this.skip();
+    }
+    return stmts;
+  }
+
+  parseIf() {
+    this.eat(TT.ID); // اذا
+    const cond = this.parseExpr();
+    this.eatColon();
+    this.skip();
+    const then = this.parseBlock(['نهاية','والا']);
+    let elif = null, elseBlock = null;
+    if (this.cur().value === 'والا') {
+      this.eat(TT.ID);
+      if (this.cur().value === 'اذا') {
+        elif = this.parseIf(); // recursive
+        return { type:'If', cond, then, elif, else: null };
+      }
+      this.eatColon(); this.skip();
+      elseBlock = this.parseBlock(['نهاية']);
+    }
+    if (this.cur().value === 'نهاية') this.eat(TT.ID);
+    this.eatDot();
+    return { type:'If', cond, then, elif, else: elseBlock };
+  }
+
+  parseWhile() {
+    this.eat(TT.ID);
+    const cond = this.parseExpr();
+    this.eatColon(); this.skip();
+    const body = this.parseBlock(['نهاية']);
+    if (this.cur().value === 'نهاية') this.eat(TT.ID);
+    this.eatDot();
+    return { type:'While', cond, body };
+  }
+
+  parseFor() {
+    this.eat(TT.ID); // لكل
+    const varTok = this.eat(TT.ID);
+    if (this.cur().value !== 'في') throw new Error('توقعت "في" بعد اسم المتغير في حلقة لكل');
+    this.eat(TT.ID); // في
+    const iter = this.parseExpr();
+    this.eatColon(); this.skip();
+    const body = this.parseBlock(['نهاية']);
+    if (this.cur().value === 'نهاية') this.eat(TT.ID);
+    this.eatDot();
+    return { type:'For', var: varTok.value, iter, body };
+  }
+
+  parseFuncDef() {
+    this.eat(TT.ID); // دالة
+    const name = this.eat(TT.ID).value;
+    this.eat(TT.LPAREN);
+    const params = [];
+    while (this.cur().type !== TT.RPAREN && this.cur().type !== TT.EOF) {
+      params.push(this.eat(TT.ID).value);
+      if (this.cur().type === TT.COMMA) this.eat(TT.COMMA);
+    }
+    this.eat(TT.RPAREN);
+    this.eatColon(); this.skip();
+    const body = this.parseBlock(['نهاية']);
+    if (this.cur().value === 'نهاية') this.eat(TT.ID);
+    this.eatDot();
+    return { type:'FuncDef', name, params, body };
+  }
+
+  parseClassDef() {
+    this.eat(TT.ID); // صنف
+    const name = this.eat(TT.ID).value;
+    let superClass = null;
+    if (this.cur().value === 'يرث') { this.eat(TT.ID); superClass = this.eat(TT.ID).value; }
+    this.eatColon(); this.skip();
+    const body = [];
+    while (this.cur().value !== 'نهاية' && this.cur().type !== TT.EOF) {
+      if (this.cur().type === TT.EOL) { this.eat(TT.EOL); continue; }
+      body.push(this.parseStmt());
+      this.skip();
+    }
+    if (this.cur().value === 'نهاية') this.eat(TT.ID);
+    this.eatDot();
+    return { type:'ClassDef', name, superClass, body };
+  }
+
+  parsePrint() {
+    this.eat(TT.ID);
+    const val = this.parseExpr();
+    this.eatDot();
+    return { type:'Print', value: val };
+  }
+
+  parseReturn() {
+    this.eat(TT.ID);
+    const val = this.parseExpr();
+    this.eatDot();
+    return { type:'Return', value: val };
+  }
+
+  parseTry() {
+    this.eat(TT.ID);
+    this.eatColon(); this.skip();
+    const tryBlock = this.parseBlock(['امسك']);
+    if (this.cur().value === 'امسك') this.eat(TT.ID);
+    this.eatColon(); this.skip();
+    const catchBlock = this.parseBlock(['نهاية']);
+    if (this.cur().value === 'نهاية') this.eat(TT.ID);
+    this.eatDot();
+    return { type:'Try', tryBlock, catchBlock };
+  }
+
+  parseExprStmt() {
+    const expr = this.parseAssign();
+    this.eatDot();
+    return { type:'ExprStmt', expr };
+  }
+
+  parseAssign() {
+    const left = this.parseExpr();
+    if (this.cur().type === TT.ASSIGN) {
+      this.eat(TT.ASSIGN);
+      const right = this.parseExpr();
+      return { type:'Assign', target: left, value: right };
+    }
+    return left;
+  }
+
+  parseExpr() { return this.parseCmp(); }
+
+  parseCmp() {
+    let left = this.parseAdd();
+    const ops = { '==':TT.EQ,'!=':TT.NEQ,'<':TT.LT,'>':TT.GT,'<=':TT.LTE,'>=':TT.GTE };
+    while (Object.keys(ops).includes(this.cur().value)) {
+      const op = this.cur().value; this.pos++;
+      left = { type:'BinOp', op, left, right: this.parseAdd() };
+    }
+    return left;
+  }
+
+  parseAdd() {
+    let left = this.parseMul();
+    while (this.cur().type===TT.PLUS||this.cur().type===TT.MINUS) {
+      const op = this.cur().value; this.pos++;
+      left = { type:'BinOp', op, left, right: this.parseMul() };
+    }
+    return left;
+  }
+
+  parseMul() {
+    let left = this.parseUnary();
+    while (this.cur().type===TT.STAR||this.cur().type===TT.SLASH||this.cur().type===TT.MOD) {
+      const op = this.cur().value; this.pos++;
+      left = { type:'BinOp', op, left, right: this.parseUnary() };
+    }
+    return left;
+  }
+
+  parseUnary() {
+    if (this.cur().type===TT.MINUS) { this.eat(TT.MINUS); return { type:'Unary', op:'-', val:this.parsePostfix() }; }
+    return this.parsePostfix();
+  }
+
+  parsePostfix() {
+    let node = this.parsePrimary();
+    while (true) {
+      if (this.cur().type === TT.DOT && this.peek(1).type === TT.ID && this.peek(2).type !== TT.LPAREN) {
+        this.eat(TT.DOT);
+        const prop = this.eat(TT.ID).value;
+        // check if next is assignment
+        if (this.cur().type === TT.ASSIGN) {
+          this.eat(TT.ASSIGN);
+          const val = this.parseExpr();
+          node = { type:'PropAssign', obj:node, prop, val };
+        } else {
+          node = { type:'PropAccess', obj:node, prop };
+        }
+      } else if (this.cur().type === TT.DOT && this.peek(1).type === TT.ID && this.peek(2).type === TT.LPAREN) {
+        this.eat(TT.DOT);
+        const meth = this.eat(TT.ID).value;
+        this.eat(TT.LPAREN);
+        const args = this.parseArgs();
+        this.eat(TT.RPAREN);
+        node = { type:'MethodCall', obj:node, method:meth, args };
+      } else if (this.cur().type === TT.LBRACKET) {
+        this.eat(TT.LBRACKET);
+        const idx = this.parseExpr();
+        this.eat(TT.RBRACKET);
+        node = { type:'Index', obj:node, idx };
+      } else break;
+    }
+    return node;
+  }
+
+  parsePrimary() {
+    const t = this.cur();
+    if (t.type === TT.NUM) { this.eat(TT.NUM); return { type:'Num', value:t.value }; }
+    if (t.type === TT.STR) { this.eat(TT.STR); return { type:'Str', value:t.value }; }
+    if (t.value === 'صحيح')  { this.eat(TT.ID); return { type:'Bool', value:true }; }
+    if (t.value === 'خطأ')   { this.eat(TT.ID); return { type:'Bool', value:false }; }
+    if (t.value === 'فارغ')  { this.eat(TT.ID); return { type:'Null' }; }
+    if (t.value === 'جديد') {
+      this.eat(TT.ID);
+      this.eat(TT.LPAREN);
+      const cls = this.eat(TT.ID).value;
+      this.eat(TT.RPAREN);
+      return { type:'New', class: cls };
+    }
+    if (t.type === TT.LBRACKET) {
+      this.eat(TT.LBRACKET);
+      const items = [];
+      while (this.cur().type !== TT.RBRACKET && this.cur().type !== TT.EOF) {
+        items.push(this.parseExpr());
+        if (this.cur().type === TT.COMMA) this.eat(TT.COMMA);
+      }
+      this.eat(TT.RBRACKET);
+      return { type:'List', items };
+    }
+    if (t.type === TT.LPAREN) {
+      this.eat(TT.LPAREN);
+      const e = this.parseExpr();
+      this.eat(TT.RPAREN);
+      return e;
+    }
+    if (t.type === TT.ID) {
+      const name = t.value;
+      this.eat(TT.ID);
+      if (this.cur().type === TT.LPAREN) {
+        this.eat(TT.LPAREN);
+        const args = this.parseArgs();
+        this.eat(TT.RPAREN);
+        return { type:'Call', name, args };
+      }
+      return { type:'Var', name };
+    }
+    throw new Error(`سطر ${t.line}: رمز غير متوقع "${t.value}"`);
+  }
+
+  parseArgs() {
+    const args = [];
+    while (this.cur().type !== TT.RPAREN && this.cur().type !== TT.EOF) {
+      args.push(this.parseExpr());
+      if (this.cur().type === TT.COMMA) this.eat(TT.COMMA);
+    }
+    return args;
+  }
+}
+
+// ── INTERPRETER ──────────────────────────────────────────────
+class QalbError extends Error { constructor(msg) { super(msg); this.name='QalbError'; } }
+class ReturnSignal { constructor(v) { this.value=v; } }
+
+class Environment {
+  constructor(parent=null) { this.vars={}; this.parent=parent; }
+  get(name) {
+    if (name in this.vars) return this.vars[name];
+    if (this.parent) return this.parent.get(name);
+    throw new QalbError(`المتغير "${name}" غير معرّف`);
+  }
+  set(name, val) {
+    if (name in this.vars || !this.parent) { this.vars[name]=val; return; }
+    this.parent.set(name, val);
+  }
+  def(name, val) { this.vars[name]=val; }
+}
+
+class QalbFunction {
+  constructor(name, params, body, closure, isMethod=false) {
+    this.name=name; this.params=params; this.body=body; this.closure=closure; this.isMethod=isMethod;
+  }
+}
+
+class QalbClass {
+  constructor(name, superClass, body) { this.name=name; this.superClass=superClass; this.body=body; }
+}
+
+class QalbInstance {
+  constructor(cls, env) { this.cls=cls; this.props={}; this._initEnv=env; }
+  get(prop, interp) {
+    // method?
+    const method = interp.findMethod(this.cls, prop);
+    if (method) {
+      return new BoundMethod(method, this);
+    }
+    if (prop in this.props) return this.props[prop];
+    throw new QalbError(`الخاصية "${prop}" غير موجودة في "${this.cls.name}"`);
+  }
+  set(prop, val) { this.props[prop]=val; }
+}
+
+class BoundMethod {
+  constructor(fn, inst) { this.fn=fn; this.inst=inst; }
+}
+
+class Interpreter {
+  constructor(output) { this.output=output; this.globals=new Environment(); this.setupBuiltins(); }
+
+  setupBuiltins() {
+    this.globals.def('طول', new QalbFunction('طول',['ق'],[], null));
+    this.globals.def('نوع', new QalbFunction('نوع',['قيمة'],[], null));
+    this.globals.def('نص', new QalbFunction('نص',['قيمة'],[], null));
+    this.globals.def('عدد', new QalbFunction('عدد',['قيمة'],[], null));
+    this.globals.def('تقريب', new QalbFunction('تقريب',['عدد'],[], null));
+  }
+
+  findMethod(cls, name) {
+    if (!cls) return null;
+    for (const stmt of cls.body) {
+      if (stmt.type==='FuncDef' && stmt.name===name) return stmt;
+    }
+    if (cls.superClass) {
+      const sup = this.globals.get(cls.superClass);
+      if (sup instanceof QalbClass) return this.findMethod(sup, name);
+    }
+    return null;
+  }
+
+  run(ast) {
+    const env = new Environment(this.globals);
+    for (const stmt of ast.body) {
+      this.execStmt(stmt, env);
+    }
+  }
+
+  execStmt(stmt, env) {
+    switch(stmt.type) {
+      case 'ExprStmt': this.evalNode(stmt.expr, env); break;
+      case 'Print': {
+        const v = this.evalNode(stmt.value, env);
+        this.output(v);
+        break;
+      }
+      case 'Return': throw new ReturnSignal(this.evalNode(stmt.value, env));
+      case 'FuncDef':
+        env.def(stmt.name, new QalbFunction(stmt.name, stmt.params, stmt.body, env));
+        break;
+      case 'ClassDef':
+        this.globals.def(stmt.name, new QalbClass(stmt.name, stmt.superClass, stmt.body));
+        break;
+      case 'If': this.execIf(stmt, env); break;
+      case 'While': this.execWhile(stmt, env); break;
+      case 'For': this.execFor(stmt, env); break;
+      case 'Try': {
+        try { for(const s of stmt.tryBlock) this.execStmt(s,env); }
+        catch(e) { for(const s of stmt.catchBlock) this.execStmt(s,env); }
+        break;
+      }
+      case 'Import': break; // placeholder
+      case 'Assign': {
+        const target = stmt.target;
+        const val = this.evalNode(stmt.value, env);
+        if (target.type==='Var') env.set(target.name, val);
+        else if (target.type==='PropAccess' || target.type==='PropAssign') {
+          const obj = this.evalNode(target.obj, env);
+          if (obj instanceof QalbInstance) obj.set(target.prop, val);
+        } else if (target.type==='Index') {
+          const obj = this.evalNode(target.obj, env);
+          const idx = this.evalNode(target.idx, env);
+          if (Array.isArray(obj)) obj[idx]=val;
+        }
+        break;
+      }
+      default: this.evalNode(stmt, env);
+    }
+  }
+
+  execIf(node, env) {
+    const cond = this.evalNode(node.cond, env);
+    if (this.isTruthy(cond)) {
+      const sub = new Environment(env);
+      for(const s of node.then) this.execStmt(s,sub);
+    } else if (node.elif) {
+      this.execIf(node.elif, env);
+    } else if (node.else) {
+      const sub = new Environment(env);
+      for(const s of node.else) this.execStmt(s,sub);
+    }
+  }
+
+  execWhile(node, env) {
+    let guard = 0;
+    while (this.isTruthy(this.evalNode(node.cond, env))) {
+      if (++guard > 10000) throw new QalbError('تجاوزت الحلقة الحد المسموح (10000 تكرار)');
+      const sub = new Environment(env);
+      for(const s of node.body) this.execStmt(s,sub);
+    }
+  }
+
+  execFor(node, env) {
+    const iter = this.evalNode(node.iter, env);
+    if (!Array.isArray(iter) && typeof iter !== 'string')
+      throw new QalbError(`لا يمكن التكرار على قيمة من نوع ${typeof iter}`);
+    for (const item of iter) {
+      const sub = new Environment(env);
+      sub.def(node.var, item);
+      for(const s of node.body) this.execStmt(s,sub);
+    }
+  }
+
+  evalNode(node, env) {
+    switch(node.type) {
+      case 'Num': return node.value;
+      case 'Str': return node.value;
+      case 'Bool': return node.value;
+      case 'Null': return null;
+      case 'List': return node.items.map(i => this.evalNode(i, env));
+      case 'Var': return env.get(node.name);
+      case 'PropAccess': {
+        const obj = this.evalNode(node.obj, env);
+        if (obj instanceof QalbInstance) return obj.get(node.prop, this);
+        throw new QalbError(`لا يمكن الوصول إلى خاصية "${node.prop}"`);
+      }
+      case 'PropAssign': {
+        const obj = this.evalNode(node.obj, env);
+        const val = this.evalNode(node.val, env);
+        if (obj instanceof QalbInstance) obj.set(node.prop, val);
+        return val;
+      }
+      case 'Index': {
+        const obj = this.evalNode(node.obj, env);
+        const idx = this.evalNode(node.idx, env);
+        if (Array.isArray(obj)) return obj[idx] ?? null;
+        if (typeof obj === 'string') return obj[idx] ?? null;
+        throw new QalbError(`لا يمكن فهرسة هذا النوع`);
+      }
+      case 'BinOp': return this.evalBinOp(node, env);
+      case 'Unary': {
+        const v = this.evalNode(node.val, env);
+        return node.op==='-' ? -v : v;
+      }
+      case 'Assign': {
+        const val = this.evalNode(node.value, env);
+        if (node.target.type==='Var') env.set(node.target.name, val);
+        else if (node.target.type==='PropAccess') {
+          const obj = this.evalNode(node.target.obj, env);
+          if (obj instanceof QalbInstance) obj.set(node.target.prop, val);
+        }
+        return val;
+      }
+      case 'Call': return this.evalCall(node, env);
+      case 'MethodCall': return this.evalMethodCall(node, env);
+      case 'New': return this.evalNew(node, env);
+      default: throw new QalbError(`نوع عقدة غير معروف: ${node.type}`);
+    }
+  }
+
+  evalBinOp(node, env) {
+    const l = this.evalNode(node.left, env);
+    const r = this.evalNode(node.right, env);
+    switch(node.op) {
+      case '+': return (typeof l==='string'||typeof r==='string') ? String(this.display(l))+String(this.display(r)) : l+r;
+      case '-': return l-r;
+      case '*': return l*r;
+      case '/': if (r===0) throw new QalbError('القسمة على صفر!'); return l/r;
+      case '%': return l%r;
+      case '==': return l===r;
+      case '!=': return l!==r;
+      case '<':  return l<r;
+      case '>':  return l>r;
+      case '<=': return l<=r;
+      case '>=': return l>=r;
+    }
+  }
+
+  evalCall(node, env) {
+    const fn = env.get(node.name);
+    const args = node.args.map(a => this.evalNode(a, env));
+    // builtins
+    if (node.name === 'طول') return Array.isArray(args[0]) ? args[0].length : String(args[0]).length;
+    if (node.name === 'نوع') {
+      const v=args[0];
+      if (v===null) return 'فارغ';
+      if (typeof v==='number') return 'عدد';
+      if (typeof v==='string') return 'نص';
+      if (typeof v==='boolean') return 'منطقي';
+      if (Array.isArray(v)) return 'قائمة';
+      if (v instanceof QalbInstance) return 'كائن:'+v.cls.name;
+      return 'غير معروف';
+    }
+    if (node.name === 'نص') return String(this.display(args[0]));
+    if (node.name === 'عدد') return Number(args[0]);
+    if (node.name === 'تقريب') return Math.round(args[0]);
+    return this.callFunction(fn, args, env);
+  }
+
+  callFunction(fn, args, env) {
+    if (!(fn instanceof QalbFunction)) throw new QalbError(`"${fn}" ليست دالة`);
+    const fenv = new Environment(fn.closure || env);
+    fn.params.forEach((p,i) => fenv.def(p, args[i] ?? null));
+    try {
+      for (const s of fn.body) this.execStmt(s, fenv);
+    } catch(e) {
+      if (e instanceof ReturnSignal) return e.value;
+      throw e;
+    }
+    return null;
+  }
+
+  evalMethodCall(node, env) {
+    const obj = this.evalNode(node.obj, env);
+    const args = node.args.map(a => this.evalNode(a, env));
+    if (obj instanceof QalbInstance) {
+      const method = this.findMethod(obj.cls, node.method);
+      if (!method) throw new QalbError(`الدالة "${node.method}" غير موجودة في "${obj.cls.name}"`);
+      const fn = new QalbFunction(method.name, method.params, method.body, env, true);
+      const fenv = new Environment(env);
+      // bind $self properties
+      Object.entries(obj.props).forEach(([k,v]) => fenv.def('$'+k.replace('$',''), v));
+      // expose class defaults
+      for (const s of obj.cls.body) {
+        if (s.type==='ExprStmt' && s.expr.type==='Assign' && s.expr.target.type==='Var') {
+          const n = s.expr.target.name;
+          if (!(n in obj.props)) fenv.def(n, obj.props[n] ?? this.evalNode(s.expr.value, env));
+        }
+      }
+      method.params.forEach((p,i) => fenv.def(p, args[i] ?? null));
+      // bridge: reads to $prop, writes to obj.props
+      const self = obj;
+      const origGet = fenv.get.bind(fenv);
+      fenv.get = (name) => {
+        try { return origGet(name); }
+        catch(e) {
+          const bare = name.replace('$','');
+          if (bare in self.props) return self.props[bare];
+          if (bare in self.props) return self.props[bare];
+          return origGet(name);
+        }
+      };
+      fenv.set = (name, val) => {
+        const bare = name.replace('$','');
+        self.props[bare] = val;
+        fenv.vars[name] = val;
+      };
+      try {
+        for (const s of method.body) this.execStmt(s, fenv);
+      } catch(e) {
+        if (e instanceof ReturnSignal) return e.value;
+        throw e;
+      }
+      return null;
+    }
+    // array methods
+    if (Array.isArray(obj)) {
+      if (node.method==='أضف') { obj.push(args[0]); return null; }
+      if (node.method==='احذف') { return obj.splice(args[0],1)[0]; }
+      if (node.method==='طول') return obj.length;
+    }
+    throw new QalbError(`الدالة "${node.method}" غير موجودة`);
+  }
+
+  evalNew(node, env) {
+    const cls = this.globals.get(node.class);
+    if (!(cls instanceof QalbClass)) throw new QalbError(`"${node.class}" ليس صنفاً`);
+    const inst = new QalbInstance(cls, env);
+    // init properties from class body
+    const initEnv = new Environment(this.globals);
+    const self = inst;
+    initEnv.set = (name, val) => { self.props[name.replace('$','')]=val; initEnv.vars[name]=val; };
+    for (const s of cls.body) {
+      if (s.type==='ExprStmt' && s.expr.type==='Assign') {
+        try { this.execStmt(s, initEnv); } catch(e) {}
+      }
+    }
+    // inherit from superclass
+    if (cls.superClass) {
+      const sup = this.globals.get(cls.superClass);
+      if (sup instanceof QalbClass) {
+        for (const s of sup.body) {
+          if (s.type==='ExprStmt' && s.expr.type==='Assign') {
+            const n = s.expr.target?.name?.replace('$','');
+            if (n && !(n in inst.props)) {
+              try {
+                const v = this.evalNode(s.expr.value, env);
+                inst.props[n] = v;
+              } catch(e){}
+            }
+          }
+        }
+      }
+    }
+    return inst;
+  }
+
+  isTruthy(v) {
+    if (v===null||v===false||v===0||v==='') return false;
+    return true;
+  }
+
+  display(v) {
+    if (v===null) return 'فارغ';
+    if (v===true) return 'صحيح';
+    if (v===false) return 'خطأ';
+    if (Array.isArray(v)) return '[' + v.map(x=>this.display(x)).join('، ') + ']';
+    if (v instanceof QalbInstance) return `<كائن ${v.cls.name}>`;
+    if (v instanceof QalbFunction) return `<دالة ${v.name}>`;
+    return String(v);
+  }
+}
+
+// ── AST VISUALIZER ────────────────────────────────────────────
+function astToHTML(node, depth=0) {
+  if (!node || typeof node !== 'object') {
+    const t = typeof node === 'string' ? 'string' : 'num';
+    return `<span class="ast-${t==='string'?'val':'num'}">${node}</span>`;
+  }
+  if (Array.isArray(node)) {
+    if (node.length === 0) return '[]';
+    return node.map(n => `<div style="margin-right:${depth*12}px">${astToHTML(n, depth+1)}</div>`).join('');
+  }
+  const { type, ...rest } = node;
+  let html = `<span class="ast-type">${type||'?'}</span>`;
+  const keys = Object.keys(rest).filter(k => rest[k]!==null && rest[k]!==undefined);
+  if (keys.length > 0 && depth < 5) {
+    html += keys.map(k => {
+      const v = rest[k];
+      let vhtml;
+      if (typeof v === 'string') vhtml = `<span class="ast-val">"${v}"</span>`;
+      else if (typeof v === 'number') vhtml = `<span class="ast-num">${v}</span>`;
+      else if (typeof v === 'boolean') vhtml = `<span class="ast-val">${v}</span>`;
+      else vhtml = astToHTML(v, depth+1);
+      return `<div style="margin-right:${(depth+1)*12}px"><span class="ast-key">${k}</span>: ${vhtml}</div>`;
+    }).join('');
+  }
+  return html;
+}
+
+// ── RUN ───────────────────────────────────────────────────────
+function clearOutput() {
+  document.getElementById('output').innerHTML = '<div class="welcome-line">← اكتب كودك وانقر تشغيل</div>';
+  document.getElementById('ast-tree').innerHTML = '<span style="color:var(--muted);font-family:Cairo,sans-serif;font-size:12px">ستظهر هنا بعد التشغيل</span>';
+  setStatus('');
+}
+
+function setStatus(s) {
+  const d = document.getElementById('status-dot');
+  d.className = 'status-dot' + (s ? ' '+s : '');
+}
+
+function runCode() {
+  const code = document.getElementById('code-input').value;
+  const outEl = document.getElementById('output');
+  const astEl = document.getElementById('ast-tree');
+  if (!code.trim()) return;
+
+  outEl.innerHTML = '';
+  setStatus('running');
+
+  const outputs = [];
+  const outputFn = (v) => {
+    const interp = window._qalb_interp;
+    outputs.push(interp ? interp.display(v) : String(v));
+  };
+
+  setTimeout(() => {
+    try {
+      const tokens = tokenize(code);
+      const parser = new Parser(tokens);
+      const ast = parser.parse();
+
+      // Show AST
+      astEl.innerHTML = astToHTML(ast, 0);
+
+      const interp = new Interpreter(outputFn);
+      window._qalb_interp = interp;
+      interp.run(ast);
+
+      // Render outputs
+      if (outputs.length === 0) {
+        outEl.innerHTML = '<div class="out-line"><span class="out-info">✓ تم التنفيذ بنجاح — لا يوجد مخرجات</span></div>';
+      } else {
+        outEl.innerHTML = outputs.map((v, i) => {
+          let cls = 'out-value';
+          if (v === 'صحيح' || v === 'خطأ') cls = 'out-bool';
+          else if (!isNaN(v) && v !== '') cls = 'out-num';
+          else if (v.startsWith('<كائن')) cls = 'out-info';
+          return `<div class="out-line"><span class="out-prompt">${i+1} →</span><span class="${cls}">${v}</span></div>`;
+        }).join('');
+      }
+      setStatus('success');
+    } catch(e) {
+      astEl.innerHTML = '<span style="color:var(--rose);font-family:Cairo,sans-serif;font-size:12px">خطأ في التحليل</span>';
+      outEl.innerHTML = `<div class="out-line"><span class="out-error">⚠ خطأ: ${e.message}</span></div>`;
+      setStatus('error');
+    }
+  }, 50);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadSnippet('hello');
+</script>
+</body>
+</html>
